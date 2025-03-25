@@ -98,9 +98,12 @@
           }
         });
 
-        // حالا که نقشه لود شد، Earth Engine رو هم لود کن
+        // Load Earth Engine once map is ready
         loadEarthEngine(initEarthEngine);
       }
+
+      // 🔑 Fix: make initMap globally accessible
+      window.initMap = initMap;
 
       function initEarthEngine() {
         if (typeof ee === 'undefined') {
