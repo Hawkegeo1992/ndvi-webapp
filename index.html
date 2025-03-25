@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>🌿 NDVI & Soil Moisture Viewer (Pro)</title>
+    <title>🌿 NDVI & Soil Moisture Viewer</title>
     <style>
       body {
         font-family: sans-serif;
@@ -13,19 +13,17 @@
       #map {
         width: 100%;
         height: 80vh;
-        margin-top: 10px;
       }
       #controls {
-        margin: 20px;
-      }
-      select, button {
         padding: 10px;
-        font-size: 16px;
+      }
+      select, input, button {
         margin: 5px;
-        cursor: pointer;
+        padding: 8px;
+        font-size: 14px;
       }
     </style>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDh9JdQp5xCLsPhB7q7t8U1jLzpXYtbxFg"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDh9JdQp5xCLsPhB7q7t8U1jLzpXYtbxFg&libraries=drawing"></script>
     <script>
       function loadEarthEngine(callback) {
         const script = document.createElement("script");
@@ -37,25 +35,60 @@
     </script>
   </head>
   <body>
-    <h1>🌿 NDVI & Soil Moisture Viewer (Pro)</h1>
+    <h1>🌿 NDVI & Soil Moisture Viewer</h1>
+
     <div id="controls">
+      <label>Start Date:</label>
+      <input type="date" id="start-date" value="2023-01-01" />
+      <label>End Date:</label>
+      <input type="date" id="end-date" value="2023-03-01" />
       <select id="layer-select">
         <option value="NDVI">NDVI</option>
         <option value="Soil">Soil Moisture</option>
       </select>
-      <button onclick="runAnalysis()">Run Analysis</button>
+      <button id="runBtn" disabled onclick="runAnalysis()">Run Analysis</button>
     </div>
-    <div id="map"></div>
 
+    <div id="map"></div>
     <script>
       let map;
+      let drawingManager;
+      let selectedGeometry = null;
       let initialized = false;
 
       function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
           center: { lat: 32.25, lng: 50.75 },
-          zoom: 10,
+          zoom: 8,
           mapTypeId: "satellite",
+        });
+
+        drawingManager = new google.maps.drawing.DrawingManager({
+          drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+          drawingControl: true,
+          drawingControlOptions: {
+            position: google.maps.ControlPosition.TOP_CENTER,
+            drawingModes: ["rectangle"]
+          },
+          rectangleOptions: {
+            fillColor: "#ffff00",
+            fillOpacity: 0.2,
+            strokeWeight: 2,
+            clickable: false,
+            editable: false,
+            zIndex: 1
+          }
+        });
+
+        drawingManager.setMap(map);
+
+        google.maps.event.addListener(drawingManager, "overlaycomplete", function (event) {
+          if (event.type === "rectangle") {
+            if (selectedGeometry) {
+              selectedGeometry.setMap(null);
+            }
+            selectedGeometry = event.overlay;
+          }
         });
       }
 
@@ -71,6 +104,7 @@
             ee.initialize(null, null, () => {
               initialized = true;
               console.log("✅ Earth Engine initialized.");
+              document.getElementById("runBtn").disabled = false;
             }, (err) => console.error("❌ EE init error:", err));
           },
           (e) => console.error("❌ Auth error:", e)
@@ -83,25 +117,39 @@
           return;
         }
 
+        if (!selectedGeometry) {
+          alert("⚠️ Please draw a region on the map.");
+          return;
+        }
+
+        const bounds = selectedGeometry.getBounds();
+        const region = ee.Geometry.Rectangle([
+          bounds.getSouthWest().lng(),
+          bounds.getSouthWest().lat(),
+          bounds.getNorthEast().lng(),
+          bounds.getNorthEast().lat()
+        ]);
+
+        const start = document.getElementById("start-date").value;
+        const end = document.getElementById("end-date").value;
         const selectedLayer = document.getElementById("layer-select").value;
-        const region = ee.Geometry.Rectangle([50.5, 32.0, 51.0, 32.5]);
 
         const collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
           .filterBounds(region)
-          .filterDate("2023-01-01", "2023-03-01")
+          .filterDate(start, end)
           .map(img => img.updateMask(img.select("QA60").not()));
 
         const composite = collection.median();
         const ndvi = composite.normalizedDifference(["B8", "B4"]).rename("NDVI");
 
         if (selectedLayer === "NDVI") {
-          ndvi.getMap({ min: 0, max: 1, palette: ["white", "green"] }, function(mapId) {
+          ndvi.getMap({ min: 0, max: 1, palette: ["white", "green"] }, function (mapId) {
             const overlay = new google.maps.ImageMapType({
-              getTileUrl: function(coord, zoom) {
+              getTileUrl: function (coord, zoom) {
                 return `https://earthengine.googleapis.com/map/${mapId.mapid}/${zoom}/${coord.x}/${coord.y}?token=${mapId.token}`;
               },
               tileSize: new google.maps.Size(256, 256),
-              name: 'NDVI Layer'
+              name: "NDVI"
             });
             map.overlayMapTypes.clear();
             map.overlayMapTypes.push(overlay);
@@ -119,24 +167,7 @@
             }
           ).rename("Soil");
 
-          soil.getMap({ min: 0, max: 1, palette: ["red", "yellow", "blue"] }, function(mapId) {
+          soil.getMap({ min: 0, max: 1, palette: ["red", "yellow", "blue"] }, function (mapId) {
             const overlay = new google.maps.ImageMapType({
-              getTileUrl: function(coord, zoom) {
-                return `https://earthengine.googleapis.com/map/${mapId.mapid}/${zoom}/${coord.x}/${coord.y}?token=${mapId.token}`;
-              },
-              tileSize: new google.maps.Size(256, 256),
-              name: 'Soil Moisture Layer'
-            });
-            map.overlayMapTypes.clear();
-            map.overlayMapTypes.push(overlay);
-          });
-        }
-      }
-
-      window.addEventListener("load", () => {
-        initMap();
-        loadEarthEngine(initEarthEngine);
-      });
-    </script>
-  </body>
-</html>
+              getTileUrl: function (coord, zoom) {
+                return `https
