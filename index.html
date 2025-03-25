@@ -42,11 +42,9 @@
     <div id="map"></div>
 
     <!-- Google Maps + Drawing Tools -->
-<script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDh9JdQp5xCLsPhB7q7t8U1jLzpXYtbxFg&libraries=drawing&callback=initMap">
-</script>
-
-
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDh9JdQp5xCLsPhB7q7t8U1jLzpXYtbxFg&libraries=drawing&callback=initMap">
+    </script>
 
     <!-- Earth Engine Loader -->
     <script>
@@ -100,11 +98,9 @@
           }
         });
 
-        // Load Earth Engine once map is ready
         loadEarthEngine(initEarthEngine);
       }
 
-      // 🔑 Fix: make initMap globally accessible
       window.initMap = initMap;
 
       function initEarthEngine() {
