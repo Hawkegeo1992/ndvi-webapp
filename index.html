@@ -2,29 +2,37 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>نمایش شاخص‌های پوشش گیاهی</title>
+  <title>سامانه پایش پوشش گیاهی ایران</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: sans-serif;
       margin: 0;
-      padding: 0;
+      font-family: 'Vazir', sans-serif;
+      background-color: #f9f9f9;
+    }
+    header {
+      background-color: #2e7d32;
+      color: white;
+      padding: 1rem;
       text-align: center;
-      background: #f5f5f5;
+      font-size: 1.5rem;
     }
     iframe {
-      border: none;
       width: 100%;
-      height: 90vh;
+      height: calc(100vh - 60px);
+      border: none;
     }
-    h1 {
-      color: green;
-      padding: 1rem;
+    footer {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>شرکت مهندسین مشاور آسمان برج کارون</h1>
-  <iframe src="https://ee-hawkegeo.projects.earthengine.app/view/hosseingholipour"></iframe>
+  <header>
+    شرکت مهندسین مشاور آسمان برج کارون
+  </header>
+
+  <iframe src="https://ee-hawkegeo.projects.earthengine.app/view/hosseingholipour" allowfullscreen></iframe>
+
 </body>
 </html>
