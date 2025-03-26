@@ -1,0 +1,8 @@
+{
+  "name": "gee-netlify-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@google/earthengine": "^0.1.265"
+  }
+}
