@@ -5,34 +5,57 @@
   <title>سامانه پایش پوشش گیاهی ایران</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: 'Vazir', sans-serif;
-      background-color: #f9f9f9;
+      padding: 0;
     }
+
+    body, html {
+      height: 100%;
+      font-family: sans-serif;
+      background-color: #f4f4f4;
+    }
+
     header {
+      height: 50px;
       background-color: #2e7d32;
       color: white;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 100;
     }
+
     iframe {
+      position: absolute;
+      top: 50px;
+      left: 0;
       width: 100%;
-      height: calc(100vh - 60px);
+      height: calc(100% - 50px);
       border: none;
     }
-    footer {
+
+    /* Optional - Scroll hiding */
+    body::-webkit-scrollbar {
       display: none;
     }
   </style>
 </head>
 <body>
+
   <header>
-    شرکت مهندسین مشاور آسمان برج کارون
+    🌿 سامانه قلی سازان ایران
   </header>
 
-  <iframe src="https://ee-hawkegeo.projects.earthengine.app/view/hosseingholipour" allowfullscreen></iframe>
+  <iframe 
+    src="https://ee-hawkegeo.projects.earthengine.app/view/hosseingholipour" 
+    allowfullscreen
+    loading="lazy">
+  </iframe>
 
 </body>
 </html>
