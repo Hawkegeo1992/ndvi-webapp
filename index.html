@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>🌿 NDVI & Soil Moisture Viewer</title>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
       body {
         font-family: sans-serif;
@@ -13,7 +12,7 @@
       }
       #map {
         width: 100%;
-        height: 60vh;
+        height: 80vh;
       }
       #controls {
         padding: 10px;
@@ -22,17 +21,6 @@
         margin: 5px;
         padding: 8px;
         font-size: 14px;
-      }
-      #chart_div {
-        width: 90%;
-        height: 400px;
-        margin: auto;
-      }
-      iframe {
-        width: 80%;
-        height: 300px;
-        border: 1px solid #ccc;
-        margin-top: 20px;
       }
     </style>
   </head>
@@ -48,17 +36,12 @@
         <option value="NDVI">NDVI</option>
         <option value="Soil">Soil Moisture</option>
       </select>
-      <button id="runBtn" disabled onclick="runAnalysis()">🔍 Run Analysis</button>
-      <button onclick="drawChart()">📊 Show Chart</button>
-      <button onclick="generateAnimation()">🎞 Generate Animation</button>
-      <button onclick="downloadOutput()">⬇️ Download GeoTIFF</button>
+      <button id="runBtn" disabled onclick="runAnalysis()">Run Analysis</button>
     </div>
 
     <div id="map"></div>
-    <div id="chart_div"></div>
-    <iframe id="videoFrame" style="display:none;"></iframe>
 
-    <!-- Google Maps -->
+    <!-- Google Maps + Drawing Tools -->
     <script async defer
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDh9JdQp5xCLsPhB7q7t8U1jLzpXYtbxFg&libraries=drawing&callback=initMap">
     </script>
@@ -68,17 +51,37 @@
       function loadEarthEngine(callback) {
         const script = document.createElement("script");
         script.src = "https://cdn.jsdelivr.net/npm/@google/earthengine@0.1.265/build/ee_api_js.js";
-        script.onload = callback;
+        script.onload = () => {
+          console.log("✅ EE API loaded");
+          callback();
+        };
         script.onerror = () => console.error("❌ Failed to load Earth Engine API.");
         document.head.appendChild(script);
       }
+
+      function initEarthEngine() {
+        ee.data.authenticateViaOauth(
+          "686935018812-926ilgpd8btttcks8v763mc4gar1seb6.apps.googleusercontent.com",
+          () => {
+            ee.initialize(null, null, () => {
+              console.log("✅ EE initialized");
+              document.getElementById("runBtn").disabled = false;
+            }, (err) => {
+              console.error("❌ EE init error:", err);
+            });
+          },
+          (err) => {
+            console.error("❌ Auth error:", err);
+          }
+        );
+      }
     </script>
+
     <script>
       let map;
       let drawingManager;
       let selectedGeometry = null;
       let initialized = false;
-      let lastResultImage = null;
 
       function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
@@ -110,24 +113,14 @@
         loadEarthEngine(initEarthEngine);
       }
 
-      window.initMap = initMap;
-
-      function initEarthEngine() {
-        ee.data.authenticateViaOauth(
-          "686935018812-926ilgpd8btttcks8v763mc4gar1seb6.apps.googleusercontent.com",
-          () => {
-            ee.initialize(null, null, () => {
-              initialized = true;
-              document.getElementById("runBtn").disabled = false;
-              console.log("✅ Earth Engine initialized.");
-            });
-          }
-        );
-      }
-
       function runAnalysis() {
-        if (!initialized || !selectedGeometry) {
-          alert("Initialize Earth Engine and draw a region first.");
+        if (!initialized || typeof ee === 'undefined') {
+          alert("⚠️ Earth Engine is not initialized yet.");
+          return;
+        }
+
+        if (!selectedGeometry) {
+          alert("⚠️ Please draw a region on the map.");
           return;
         }
 
@@ -150,7 +143,6 @@
 
         const composite = collection.median();
         const ndvi = composite.normalizedDifference(["B8", "B4"]).rename("NDVI");
-        lastResultImage = ndvi; // Store latest for download/chart
 
         let layerToDisplay = ndvi;
         let visParams = { min: 0, max: 1, palette: ["white", "green"] };
@@ -162,13 +154,9 @@
 
           const soil = composite.addBands(ndvi).addBands(str).expression(
             '(ndvi + str) / 2',
-            {
-              ndvi: ndvi,
-              str: str
-            }
+            { ndvi, str }
           ).rename("Soil");
 
-          lastResultImage = soil;
           layerToDisplay = soil;
           visParams = { min: 0, max: 1, palette: ["blue", "yellow", "red"] };
         }
@@ -183,118 +171,6 @@
           });
           map.overlayMapTypes.clear();
           map.overlayMapTypes.push(overlay);
-        });
-      }
-
-      function drawChart() {
-        if (!lastResultImage || !selectedGeometry) return;
-
-        const bounds = selectedGeometry.getBounds();
-        const region = ee.Geometry.Rectangle([
-          bounds.getSouthWest().lng(),
-          bounds.getSouthWest().lat(),
-          bounds.getNorthEast().lng(),
-          bounds.getNorthEast().lat()
-        ]);
-
-        const start = document.getElementById("start-date").value;
-        const end = document.getElementById("end-date").value;
-        const selectedLayer = document.getElementById("layer-select").value;
-        const bandName = selectedLayer === "NDVI" ? "NDVI" : "Soil";
-
-        const collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-          .filterBounds(region)
-          .filterDate(start, end)
-          .map(img => {
-            const ndvi = img.normalizedDifference(["B8", "B4"]).rename("NDVI");
-            if (bandName === "NDVI") return ndvi;
-            const str = img.expression('((1 - r)**2) / (r * 2)', {
-              r: img.select("B12")
-            }).rename("STR");
-            return ndvi.addBands(str).expression('(ndvi + str) / 2', {
-              ndvi: ndvi,
-              str: str
-            }).rename("Soil");
-          });
-
-        const chart = ui.Chart.image.series({
-          imageCollection: collection,
-          region: region,
-          reducer: ee.Reducer.mean(),
-          scale: 30
-        }).setChartType('LineChart').setOptions({
-          title: `${bandName} Time Series`,
-          vAxis: { title: bandName },
-          hAxis: { title: 'Date' },
-          lineWidth: 2,
-          pointSize: 4
-        });
-
-        chart.draw(document.getElementById("chart_div"));
-      }
-
-      function generateAnimation() {
-        if (!selectedGeometry) return;
-
-        const bounds = selectedGeometry.getBounds();
-        const region = ee.Geometry.Rectangle([
-          bounds.getSouthWest().lng(),
-          bounds.getSouthWest().lat(),
-          bounds.getNorthEast().lng(),
-          bounds.getNorthEast().lat()
-        ]);
-
-        const start = document.getElementById("start-date").value;
-        const end = document.getElementById("end-date").value;
-        const selectedLayer = document.getElementById("layer-select").value;
-
-        const collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-          .filterBounds(region)
-          .filterDate(start, end)
-          .map(img => img.updateMask(img.select("QA60").not()));
-
-        const images = collection.map(function (img) {
-          const ndvi = img.normalizedDifference(["B8", "B4"]).rename("NDVI");
-          if (selectedLayer === "NDVI") return ndvi.visualize({ min: 0, max: 1, palette: ["white", "green"] });
-          const str = img.expression('((1 - r)**2) / (r * 2)', { r: img.select("B12") }).rename("STR");
-          const soil = ndvi.addBands(str).expression('(ndvi + str) / 2', { ndvi, str }).rename("Soil");
-          return soil.visualize({ min: 0, max: 1, palette: ["blue", "yellow", "red"] });
-        });
-
-        const videoArgs = {
-          dimensions: 600,
-          region: region,
-          framesPerSecond: 2
-        };
-
-        ee.data.getVideoThumbURL(images, videoArgs, function (url) {
-          const iframe = document.getElementById("videoFrame");
-          iframe.src = url;
-          iframe.style.display = "block";
-        });
-      }
-
-      function downloadOutput() {
-        if (!lastResultImage || !selectedGeometry) return;
-
-        const bounds = selectedGeometry.getBounds();
-        const region = ee.Geometry.Rectangle([
-          bounds.getSouthWest().lng(),
-          bounds.getSouthWest().lat(),
-          bounds.getNorthEast().lng(),
-          bounds.getNorthEast().lat()
-        ]);
-
-        const downloadConfig = {
-          name: "output_image",
-          region: region,
-          scale: 10,
-          fileFormat: "GeoTIFF"
-        };
-
-        ee.data.getDownloadId({ image: lastResultImage.serialize(), ...downloadConfig }, function (downloadId) {
-          const url = `https://earthengine.googleapis.com/download?docid=${downloadId}&token=YOUR_TOKEN`;
-          window.open(url, "_blank");
         });
       }
     </script>
