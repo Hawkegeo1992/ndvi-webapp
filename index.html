@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="fa" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <title>GEE Netlify App 🌍</title>
+  <meta charset="UTF-8">
+  <title>سامانه پایش پوشش گیاهی ایران</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <h2>🛰 Vegetation Index Viewer (Iran)</h2>
-  <button onclick="fetchData()">🔍 Load GEE Data</button>
-  <pre id="output"></pre>
 
-  <script>
-    async function fetchData() {
-      const res = await fetch('/.netlify/functions/runGEE');
-      const data = await res.json();
-      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-    }
-  </script>
+  <header>
+   شرکت مهندسین مشاور آسمان برج کارون
+  </header>
+
+  <iframe 
+    src="https://ee-hawkegeo.projects.earthengine.app/view/hosseingholipour"
+    allowfullscreen 
+    loading="lazy">
+  </iframe>
+
 </body>
 </html>
